@@ -1,0 +1,58 @@
+# One-time bootstrap workflow for creating foundational AWS resources
+# (S3 state bucket, DynamoDB lock table, OIDC provider, GitHub Actions role)
+# Uses static IAM credentials since OIDC doesn't exist yet during bootstrap.
+
+name: Bootstrap Infrastructure
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  bootstrap:
+    name: Bootstrap AWS Foundation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: "~1.9"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_BOOTSTRAP_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_BOOTSTRAP_SECRET_ACCESS_KEY }}
+          aws-region: eu-central-1
+
+      - name: Terraform Init
+        working-directory: bootstrap/
+        run: tofu init
+
+      - name: Terraform Plan
+        working-directory: bootstrap/
+        run: tofu plan -out=bootstrap.tfplan
+
+      - name: Terraform Apply
+        working-directory: bootstrap/
+        run: tofu apply bootstrap.tfplan
+
+      - name: Post outputs to job summary
+        working-directory: bootstrap/
+        run: |
+          echo "## Bootstrap Outputs" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          tofu output >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Bootstrap completed successfully. You can now:" >> $GITHUB_STEP_SUMMARY
+          echo "1. Add \`AWS_ROLE_ARN\` secret with the OIDC role ARN" >> $GITHUB_STEP_SUMMARY
+          echo "2. Remove the bootstrap IAM credentials from secrets" >> $GITHUB_STEP_SUMMARY

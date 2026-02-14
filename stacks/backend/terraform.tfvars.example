@@ -1,0 +1,36 @@
+# -----------------------------------------------------------------------------
+# Backend Stack - Example Variables
+# Copy to terraform.tfvars and adjust values for your environment.
+# -----------------------------------------------------------------------------
+
+project_name = "steponx"
+environment  = "production"
+aws_region   = "eu-central-1"
+
+# Container / ECS
+# container_image = "495599775261.dkr.ecr.eu-central-1.amazonaws.com/steponx-production:latest"
+container_port = 3000
+cpu            = 256
+memory         = 512
+desired_count  = 2
+min_capacity   = 1
+max_capacity   = 4
+
+# Database (RDS)
+db_instance_class    = "db.t4g.micro"
+db_allocated_storage = 20
+db_multi_az          = false
+
+# ALB / HTTPS (provide ACM certificate ARN for HTTPS)
+# alb_certificate_arn = "arn:aws:acm:eu-central-1:495599775261:certificate/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+# Extra environment variables for the Next.js container
+# app_environment_variables = {
+#   NEXT_PUBLIC_SITE_URL = "https://steponx.com"
+#   SES_FROM_EMAIL       = "noreply@steponx.com"
+# }
+
+# Additional tags
+# tags = {
+#   CostCenter = "ecommerce"
+# }

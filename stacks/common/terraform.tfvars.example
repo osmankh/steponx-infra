@@ -1,0 +1,34 @@
+# StepOnX Common Stack - Example Variables
+# Copy this file to terraform.tfvars and fill in your values.
+
+# Project identification
+project_name = "steponx"
+environment  = "production"
+aws_region   = "eu-central-1"
+
+# Domain - set to enable SES email and DNS-based features
+# Leave empty to skip SES provisioning
+domain_name = "steponx.com"
+
+# CloudFront CDN - custom domain and ACM certificate
+# Leave empty to use the default CloudFront domain (*.cloudfront.net)
+cdn_domain_name         = "cdn.steponx.com"
+cdn_acm_certificate_arn = "" # Must be in us-east-1
+
+# Cognito auth - callback and logout URLs
+cognito_callback_urls = [
+  "http://localhost:3000/api/auth/callback",
+  "https://steponx.com/api/auth/callback"
+]
+cognito_logout_urls = [
+  "http://localhost:3000",
+  "https://steponx.com"
+]
+
+# VPC flow logs - enable for network traffic monitoring
+enable_vpc_flow_logs = false
+
+# Additional tags applied to all resources
+tags = {
+  Team = "platform"
+}
