@@ -92,6 +92,12 @@ variable "db_multi_az" {
 # ALB / Networking
 # -----------------------------------------------------------------------------
 
+variable "enable_load_balancer" {
+  description = "Enable ALB and attach ECS service to it (requires account verification for ELBv2)"
+  type        = bool
+  default     = false
+}
+
 variable "alb_certificate_arn" {
   description = "ACM certificate ARN for HTTPS on the ALB"
   type        = string

@@ -54,12 +54,14 @@ resource "aws_security_group" "ecs_tasks" {
 
 # Allow inbound from ALB to ECS tasks on the container port
 resource "aws_security_group_rule" "ecs_ingress_from_alb" {
+  count = var.enable_load_balancer ? 1 : 0
+
   type                     = "ingress"
   from_port                = var.container_port
   to_port                  = var.container_port
   protocol                 = "tcp"
   security_group_id        = aws_security_group.ecs_tasks.id
-  source_security_group_id = module.alb.security_group_id
+  source_security_group_id = module.alb[0].security_group_id
   description              = "Allow inbound from ALB"
 }
 
@@ -93,6 +95,7 @@ module "ecs_cluster" {
 
 module "alb" {
   source = "../../modules/alb"
+  count  = var.enable_load_balancer ? 1 : 0
 
   project_name      = var.project_name
   environment       = var.environment
@@ -138,10 +141,10 @@ module "ecs_service" {
   desired_count         = var.desired_count
   min_capacity          = var.min_capacity
   max_capacity          = var.max_capacity
-  target_group_arn      = module.alb.target_group_arn
+  target_group_arn      = var.enable_load_balancer ? module.alb[0].target_group_arn : ""
   private_subnet_ids    = local.common.private_subnet_ids
   vpc_id                = local.common.vpc_id
-  alb_security_group_id = module.alb.security_group_id
+  alb_security_group_id = var.enable_load_balancer ? module.alb[0].security_group_id : ""
 
   environment_variables = local.app_env_vars
 

@@ -27,7 +27,7 @@ variable "allowed_security_group_ids" {
 variable "engine_version" {
   description = "PostgreSQL engine version"
   type        = string
-  default     = "16.4"
+  default     = "16.6"
 }
 
 variable "instance_class" {

@@ -66,27 +66,27 @@ output "ecs_security_group_id" {
 
 output "alb_dns_name" {
   description = "DNS name of the Application Load Balancer"
-  value       = module.alb.alb_dns_name
+  value       = var.enable_load_balancer ? module.alb[0].alb_dns_name : ""
 }
 
 output "alb_zone_id" {
   description = "Canonical hosted zone ID of the ALB (for Route 53 alias records)"
-  value       = module.alb.alb_zone_id
+  value       = var.enable_load_balancer ? module.alb[0].alb_zone_id : ""
 }
 
 output "alb_arn" {
   description = "ARN of the Application Load Balancer"
-  value       = module.alb.alb_arn
+  value       = var.enable_load_balancer ? module.alb[0].alb_arn : ""
 }
 
 output "alb_target_group_arn" {
   description = "ARN of the ALB target group"
-  value       = module.alb.target_group_arn
+  value       = var.enable_load_balancer ? module.alb[0].target_group_arn : ""
 }
 
 output "alb_security_group_id" {
   description = "ID of the ALB security group"
-  value       = module.alb.security_group_id
+  value       = var.enable_load_balancer ? module.alb[0].security_group_id : ""
 }
 
 # -----------------------------------------------------------------------------

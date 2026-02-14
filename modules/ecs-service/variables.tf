@@ -60,8 +60,9 @@ variable "max_capacity" {
 }
 
 variable "target_group_arn" {
-  description = "ALB target group ARN for the service"
+  description = "ALB target group ARN for the service (empty string to skip load balancer attachment)"
   type        = string
+  default     = ""
 }
 
 variable "private_subnet_ids" {
@@ -75,8 +76,9 @@ variable "vpc_id" {
 }
 
 variable "alb_security_group_id" {
-  description = "Security group ID of the ALB to allow ingress from"
+  description = "Security group ID of the ALB to allow ingress from (empty string to skip ALB ingress rule)"
   type        = string
+  default     = ""
 }
 
 variable "environment_variables" {

@@ -217,6 +217,8 @@ resource "aws_security_group" "ecs_service" {
 }
 
 resource "aws_security_group_rule" "ingress_from_alb" {
+  count = var.alb_security_group_id != "" ? 1 : 0
+
   type                     = "ingress"
   from_port                = var.container_port
   to_port                  = var.container_port
@@ -251,10 +253,13 @@ resource "aws_ecs_service" "this" {
     assign_public_ip = false
   }
 
-  load_balancer {
-    target_group_arn = var.target_group_arn
-    container_name   = var.task_family
-    container_port   = var.container_port
+  dynamic "load_balancer" {
+    for_each = var.target_group_arn != "" ? [1] : []
+    content {
+      target_group_arn = var.target_group_arn
+      container_name   = var.task_family
+      container_port   = var.container_port
+    }
   }
 
   deployment_circuit_breaker {
