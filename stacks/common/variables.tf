@@ -22,6 +22,12 @@ variable "domain_name" {
   default     = ""
 }
 
+variable "enable_cdn" {
+  description = "Enable S3+CloudFront CDN (requires account verification for CloudFront)"
+  type        = bool
+  default     = false
+}
+
 variable "cdn_domain_name" {
   description = "Custom domain for CloudFront distribution"
   type        = string

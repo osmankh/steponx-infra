@@ -33,22 +33,22 @@ output "nat_gateway_id" {
 
 output "cdn_bucket_name" {
   description = "Name of the S3 bucket for CDN assets"
-  value       = module.cdn.bucket_name
+  value       = var.enable_cdn ? module.cdn[0].bucket_name : ""
 }
 
 output "cdn_bucket_arn" {
   description = "ARN of the S3 bucket for CDN assets"
-  value       = module.cdn.bucket_arn
+  value       = var.enable_cdn ? module.cdn[0].bucket_arn : ""
 }
 
 output "cdn_distribution_id" {
   description = "ID of the CloudFront distribution"
-  value       = module.cdn.cloudfront_distribution_id
+  value       = var.enable_cdn ? module.cdn[0].cloudfront_distribution_id : ""
 }
 
 output "cdn_domain_name" {
   description = "Domain name of the CloudFront distribution"
-  value       = module.cdn.cloudfront_domain_name
+  value       = var.enable_cdn ? module.cdn[0].cloudfront_domain_name : ""
 }
 
 # -----------------------------------------------------------------------------

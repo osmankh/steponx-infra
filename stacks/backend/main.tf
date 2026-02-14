@@ -21,7 +21,7 @@ locals {
     COGNITO_USER_POOL_ID = local.common.cognito_user_pool_id
     COGNITO_CLIENT_ID    = local.common.cognito_user_pool_client_id
     CDN_DOMAIN           = local.common.cdn_domain_name
-    NEXT_PUBLIC_CDN_URL  = "https://${local.common.cdn_domain_name}"
+    NEXT_PUBLIC_CDN_URL  = local.common.cdn_domain_name != "" ? "https://${local.common.cdn_domain_name}" : ""
   }, var.app_environment_variables)
 }
 
