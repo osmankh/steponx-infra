@@ -43,12 +43,12 @@ output "cdn_bucket_arn" {
 
 output "cdn_distribution_id" {
   description = "ID of the CloudFront distribution"
-  value       = module.cdn.distribution_id
+  value       = module.cdn.cloudfront_distribution_id
 }
 
 output "cdn_domain_name" {
   description = "Domain name of the CloudFront distribution"
-  value       = module.cdn.domain_name
+  value       = module.cdn.cloudfront_domain_name
 }
 
 # -----------------------------------------------------------------------------
@@ -72,7 +72,7 @@ output "ses_configuration_set_name" {
 
 output "ses_send_policy_arn" {
   description = "ARN of the IAM policy for SES sending"
-  value       = var.domain_name != "" ? module.ses[0].send_policy_arn : ""
+  value       = var.domain_name != "" ? module.ses[0].ses_send_policy_arn : ""
 }
 
 # -----------------------------------------------------------------------------
