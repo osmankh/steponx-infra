@@ -52,6 +52,12 @@ variable "cognito_logout_urls" {
   default     = ["http://localhost:3000"]
 }
 
+variable "enable_nat_gateway" {
+  description = "Enable NAT Gateway for private subnet internet access"
+  type        = bool
+  default     = false
+}
+
 variable "enable_vpc_flow_logs" {
   description = "Enable VPC flow logs for network monitoring"
   type        = bool

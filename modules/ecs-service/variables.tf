@@ -65,9 +65,21 @@ variable "target_group_arn" {
   default     = ""
 }
 
-variable "private_subnet_ids" {
-  description = "List of private subnet IDs for task placement"
+variable "subnet_ids" {
+  description = "List of subnet IDs for task placement"
   type        = list(string)
+}
+
+variable "assign_public_ip" {
+  description = "Whether to assign a public IP to ECS tasks"
+  type        = bool
+  default     = true
+}
+
+variable "vpc_cidr" {
+  description = "VPC CIDR block for scoping egress rules"
+  type        = string
+  default     = "10.0.0.0/16"
 }
 
 variable "vpc_id" {

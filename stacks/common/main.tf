@@ -1,10 +1,11 @@
 module "vpc" {
   source = "../../modules/vpc"
 
-  project_name     = var.project_name
-  environment      = var.environment
-  enable_flow_logs = var.enable_vpc_flow_logs
-  tags             = var.tags
+  project_name       = var.project_name
+  environment        = var.environment
+  enable_nat_gateway = var.enable_nat_gateway
+  enable_flow_logs   = var.enable_vpc_flow_logs
+  tags               = var.tags
 }
 
 module "cdn" {

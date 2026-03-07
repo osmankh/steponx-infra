@@ -227,13 +227,54 @@ resource "aws_security_group_rule" "ingress_from_alb" {
   security_group_id        = aws_security_group.ecs_service.id
 }
 
-resource "aws_security_group_rule" "egress_all" {
+resource "aws_security_group_rule" "egress_https" {
   type              = "egress"
-  from_port         = 0
-  to_port           = 0
-  protocol          = "-1"
+  from_port         = 443
+  to_port           = 443
+  protocol          = "tcp"
   cidr_blocks       = ["0.0.0.0/0"]
   security_group_id = aws_security_group.ecs_service.id
+  description       = "HTTPS to internet (AWS APIs, external APIs)"
+}
+
+resource "aws_security_group_rule" "egress_http" {
+  type              = "egress"
+  from_port         = 80
+  to_port           = 80
+  protocol          = "tcp"
+  cidr_blocks       = ["0.0.0.0/0"]
+  security_group_id = aws_security_group.ecs_service.id
+  description       = "HTTP to internet"
+}
+
+resource "aws_security_group_rule" "egress_postgres" {
+  type              = "egress"
+  from_port         = 5432
+  to_port           = 5432
+  protocol          = "tcp"
+  cidr_blocks       = [var.vpc_cidr]
+  security_group_id = aws_security_group.ecs_service.id
+  description       = "PostgreSQL to RDS within VPC"
+}
+
+resource "aws_security_group_rule" "egress_dns_udp" {
+  type              = "egress"
+  from_port         = 53
+  to_port           = 53
+  protocol          = "udp"
+  cidr_blocks       = [var.vpc_cidr]
+  security_group_id = aws_security_group.ecs_service.id
+  description       = "DNS (UDP) within VPC"
+}
+
+resource "aws_security_group_rule" "egress_dns_tcp" {
+  type              = "egress"
+  from_port         = 53
+  to_port           = 53
+  protocol          = "tcp"
+  cidr_blocks       = [var.vpc_cidr]
+  security_group_id = aws_security_group.ecs_service.id
+  description       = "DNS (TCP) within VPC"
 }
 
 # -----------------------------------------------------------------------------
@@ -248,9 +289,9 @@ resource "aws_ecs_service" "this" {
   launch_type     = "FARGATE"
 
   network_configuration {
-    subnets          = var.private_subnet_ids
+    subnets          = var.subnet_ids
     security_groups  = [aws_security_group.ecs_service.id]
-    assign_public_ip = false
+    assign_public_ip = var.assign_public_ip
   }
 
   dynamic "load_balancer" {

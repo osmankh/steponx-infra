@@ -142,8 +142,10 @@ module "ecs_service" {
   min_capacity          = var.min_capacity
   max_capacity          = var.max_capacity
   target_group_arn      = var.enable_load_balancer ? module.alb[0].target_group_arn : ""
-  private_subnet_ids    = local.common.private_subnet_ids
+  subnet_ids            = local.common.public_subnet_ids
+  assign_public_ip      = true
   vpc_id                = local.common.vpc_id
+  vpc_cidr              = local.common.vpc_cidr_block
   alb_security_group_id = var.enable_load_balancer ? module.alb[0].security_group_id : ""
 
   environment_variables = local.app_env_vars
