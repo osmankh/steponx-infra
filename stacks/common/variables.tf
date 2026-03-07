@@ -32,6 +32,12 @@ variable "create_hosted_zone" {
   default     = false
 }
 
+variable "route53_zone_id" {
+  description = "Existing Route 53 hosted zone ID (when create_hosted_zone is false and zone already exists)"
+  type        = string
+  default     = ""
+}
+
 variable "create_acm_certificate" {
   description = "Create an ACM certificate for the environment domains with DNS validation"
   type        = bool

@@ -227,7 +227,7 @@ resource "aws_security_group" "ecs_service" {
 }
 
 resource "aws_security_group_rule" "ingress_from_alb" {
-  count = var.alb_security_group_id != "" ? 1 : 0
+  count = var.enable_alb_ingress ? 1 : 0
 
   type                     = "ingress"
   from_port                = var.container_port

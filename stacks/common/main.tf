@@ -30,16 +30,8 @@ resource "aws_route53_zone" "main" {
   tags  = var.tags
 }
 
-# Look up existing zone when not creating one (e.g. dev environment)
-data "aws_route53_zone" "main" {
-  count = !var.create_hosted_zone && var.domain_name != "" ? 1 : 0
-  name  = var.domain_name
-}
-
 locals {
-  zone_id = var.domain_name != "" ? (
-    var.create_hosted_zone ? aws_route53_zone.main[0].zone_id : data.aws_route53_zone.main[0].zone_id
-  ) : ""
+  zone_id = var.create_hosted_zone && var.domain_name != "" ? aws_route53_zone.main[0].zone_id : var.route53_zone_id
 }
 
 # -----------------------------------------------------------------------------

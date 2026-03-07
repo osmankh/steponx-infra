@@ -87,8 +87,14 @@ variable "vpc_id" {
   type        = string
 }
 
+variable "enable_alb_ingress" {
+  description = "Whether to create the ALB ingress security group rule"
+  type        = bool
+  default     = false
+}
+
 variable "alb_security_group_id" {
-  description = "Security group ID of the ALB to allow ingress from (empty string to skip ALB ingress rule)"
+  description = "Security group ID of the ALB to allow ingress from"
   type        = string
   default     = ""
 }

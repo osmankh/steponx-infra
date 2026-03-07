@@ -249,6 +249,7 @@ module "ecs_service" {
   assign_public_ip      = true
   vpc_id                = local.common.vpc_id
   vpc_cidr              = local.common.vpc_cidr_block
+  enable_alb_ingress    = var.enable_load_balancer
   alb_security_group_id = var.enable_load_balancer ? module.alb[0].security_group_id : ""
 
   environment_variables = local.app_env_vars
@@ -295,6 +296,7 @@ module "ecs_service_api" {
   assign_public_ip      = true
   vpc_id                = local.common.vpc_id
   vpc_cidr              = local.common.vpc_cidr_block
+  enable_alb_ingress    = var.enable_load_balancer
   alb_security_group_id = var.enable_load_balancer ? module.alb[0].security_group_id : ""
 
   environment_variables = local.api_env_vars
