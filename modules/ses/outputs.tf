@@ -3,6 +3,11 @@ output "domain_identity_arn" {
   value       = aws_ses_domain_identity.this.arn
 }
 
+output "domain_verification_token" {
+  description = "Verification token for the SES domain identity TXT record"
+  value       = aws_ses_domain_identity.this.verification_token
+}
+
 output "dkim_tokens" {
   description = "List of DKIM tokens. Create CNAME records: <token>._domainkey.<domain> -> <token>.dkim.amazonses.com"
   value       = aws_ses_domain_dkim.this.dkim_tokens

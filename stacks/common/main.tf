@@ -52,24 +52,18 @@ resource "aws_acm_certificate" "main" {
 }
 
 resource "aws_route53_record" "acm_validation" {
-  for_each = var.create_acm_certificate && length(var.acm_domain_names) > 0 && local.zone_id != "" ? {
-    for dvo in aws_acm_certificate.main[0].domain_validation_options : dvo.domain_name => {
-      name   = dvo.resource_record_name
-      record = dvo.resource_record_value
-      type   = dvo.resource_record_type
-    }
-  } : {}
+  for_each = var.create_acm_certificate && var.create_hosted_zone && length(var.acm_domain_names) > 0 ? toset(var.acm_domain_names) : toset([])
 
   zone_id         = local.zone_id
-  name            = each.value.name
-  type            = each.value.type
-  records         = [each.value.record]
+  name            = one([for dvo in aws_acm_certificate.main[0].domain_validation_options : dvo.resource_record_name if dvo.domain_name == each.key])
+  type            = "CNAME"
+  records         = [one([for dvo in aws_acm_certificate.main[0].domain_validation_options : dvo.resource_record_value if dvo.domain_name == each.key])]
   ttl             = 60
   allow_overwrite = true
 }
 
 resource "aws_acm_certificate_validation" "main" {
-  count                   = var.create_acm_certificate && length(var.acm_domain_names) > 0 && local.zone_id != "" ? 1 : 0
+  count                   = var.create_acm_certificate && var.create_hosted_zone && length(var.acm_domain_names) > 0 ? 1 : 0
   certificate_arn         = aws_acm_certificate.main[0].arn
   validation_record_fqdns = [for record in aws_route53_record.acm_validation : record.fqdn]
 }
@@ -87,6 +81,78 @@ module "ses" {
   domain_name  = var.domain_name
   tags         = var.tags
 }
+
+# -----------------------------------------------------------------------------
+# SES DNS Records (domain verification + DKIM)
+# -----------------------------------------------------------------------------
+
+resource "aws_route53_record" "ses_verification" {
+  count   = var.domain_name != "" && (var.create_hosted_zone || var.route53_zone_id != "") ? 1 : 0
+  zone_id = local.zone_id
+  name    = "_amazonses.${var.domain_name}"
+  type    = "TXT"
+  ttl     = 600
+  records = [module.ses[0].domain_verification_token]
+}
+
+resource "aws_route53_record" "ses_dkim" {
+  count   = var.domain_name != "" && (var.create_hosted_zone || var.route53_zone_id != "") ? 3 : 0
+  zone_id = local.zone_id
+  name    = "${module.ses[0].dkim_tokens[count.index]}._domainkey.${var.domain_name}"
+  type    = "CNAME"
+  ttl     = 600
+  records = ["${module.ses[0].dkim_tokens[count.index]}.dkim.amazonses.com"]
+}
+
+# -----------------------------------------------------------------------------
+# Google & DMARC DNS Records
+# -----------------------------------------------------------------------------
+
+resource "aws_route53_record" "google_verification_cname" {
+  count   = var.create_hosted_zone && var.domain_name != "" ? 1 : 0
+  zone_id = local.zone_id
+  name    = "lyycatvgd4uv.${var.domain_name}"
+  type    = "CNAME"
+  ttl     = 3600
+  records = ["gv-i2dtpzrupjlvhe.dv.googlehosted.com"]
+}
+
+resource "aws_route53_record" "google_verification_txt" {
+  count   = var.create_hosted_zone && var.domain_name != "" ? 1 : 0
+  zone_id = local.zone_id
+  name    = var.domain_name
+  type    = "TXT"
+  ttl     = 3600
+  records = [
+    "google-site-verification=xzd621L4GoW2KhlkHJhqryCmy5YeD7QS2k8SXJz-dlo",
+  ]
+}
+
+resource "aws_route53_record" "dmarc" {
+  count   = var.create_hosted_zone && var.domain_name != "" ? 1 : 0
+  zone_id = local.zone_id
+  name    = "_dmarc.${var.domain_name}"
+  type    = "TXT"
+  ttl     = 3600
+  records = ["v=DMARC1; p=quarantine; adkim=r; aspf=r;"]
+}
+
+# CAA records — allow Amazon to issue certificates
+resource "aws_route53_record" "caa" {
+  count   = var.create_hosted_zone && var.domain_name != "" ? 1 : 0
+  zone_id = local.zone_id
+  name    = var.domain_name
+  type    = "CAA"
+  ttl     = 3600
+  records = [
+    "0 issue \"amazon.com\"",
+    "0 issuewild \"amazon.com\"",
+  ]
+}
+
+# -----------------------------------------------------------------------------
+# Cognito
+# -----------------------------------------------------------------------------
 
 module "cognito" {
   source = "../../modules/cognito"

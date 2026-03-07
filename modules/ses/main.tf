@@ -88,12 +88,6 @@ data "aws_iam_policy_document" "sns_ses_publish" {
       variable = "AWS:SourceAccount"
       values   = [data.aws_caller_identity.current.account_id]
     }
-
-    condition {
-      test     = "StringEquals"
-      variable = "AWS:SourceArn"
-      values   = [aws_ses_domain_identity.this.arn]
-    }
   }
 }
 
@@ -132,6 +126,8 @@ resource "aws_ses_event_destination" "bounces" {
   sns_destination {
     topic_arn = aws_sns_topic.bounces.arn
   }
+
+  depends_on = [aws_sns_topic_policy.bounces]
 }
 
 resource "aws_ses_event_destination" "complaints" {
@@ -143,6 +139,8 @@ resource "aws_ses_event_destination" "complaints" {
   sns_destination {
     topic_arn = aws_sns_topic.complaints.arn
   }
+
+  depends_on = [aws_sns_topic_policy.complaints]
 }
 
 # ------------------------------------------------------------------------------
