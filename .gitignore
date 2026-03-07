@@ -6,6 +6,7 @@
 .terraform.lock.hcl
 *.tfvars
 !*.tfvars.example
+!environments/**/*.tfvars
 crash.log
 crash.*.log
 override.tf

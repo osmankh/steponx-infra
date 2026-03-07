@@ -131,6 +131,7 @@ jobs:
         id: plan
         working-directory: stacks/common/
         run: |
+          set -o pipefail
           tofu plan \
             -var-file="../../environments/${{ matrix.env }}/common.tfvars" \
             -out=plan.tfplan -no-color 2>&1 | tee plan-output.txt
@@ -209,6 +210,7 @@ jobs:
         id: plan
         working-directory: stacks/backend/
         run: |
+          set -o pipefail
           tofu plan \
             -var-file="../../environments/${{ matrix.env }}/backend.tfvars" \
             -out=plan.tfplan -no-color 2>&1 | tee plan-output.txt
