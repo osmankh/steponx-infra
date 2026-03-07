@@ -157,18 +157,12 @@ variable "enable_load_balancer" {
   default     = false
 }
 
-variable "alb_certificate_arn" {
-  description = "ACM certificate ARN for HTTPS on the ALB"
-  type        = string
-  default     = ""
-}
-
 # -----------------------------------------------------------------------------
 # DNS (Route 53)
 # -----------------------------------------------------------------------------
 
 variable "domain_name" {
-  description = "Root domain name (e.g. steponx.com)"
+  description = "Domain name for this environment's web service (e.g. steponx.com or dev.steponx.com)"
   type        = string
   default     = ""
 }
@@ -177,12 +171,6 @@ variable "create_dns_records" {
   description = "Create Route 53 DNS records pointing to the ALB"
   type        = bool
   default     = false
-}
-
-variable "route53_zone_id" {
-  description = "Route 53 hosted zone ID for DNS records"
-  type        = string
-  default     = ""
 }
 
 # -----------------------------------------------------------------------------

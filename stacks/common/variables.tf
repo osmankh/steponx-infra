@@ -23,6 +23,28 @@ variable "domain_name" {
 }
 
 # -----------------------------------------------------------------------------
+# DNS / Route 53
+# -----------------------------------------------------------------------------
+
+variable "create_hosted_zone" {
+  description = "Create a Route 53 hosted zone for the domain (enable only in one environment)"
+  type        = bool
+  default     = false
+}
+
+variable "create_acm_certificate" {
+  description = "Create an ACM certificate for the environment domains with DNS validation"
+  type        = bool
+  default     = false
+}
+
+variable "acm_domain_names" {
+  description = "Domain names for the ACM certificate (first is primary, rest are SANs)"
+  type        = list(string)
+  default     = []
+}
+
+# -----------------------------------------------------------------------------
 # Media Bucket (S3 + optional CloudFront)
 # -----------------------------------------------------------------------------
 

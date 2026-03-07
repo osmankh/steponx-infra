@@ -14,9 +14,13 @@ data "terraform_remote_state" "common" {
 locals {
   common = data.terraform_remote_state.common.outputs
 
+  route53_zone_id     = try(local.common.route53_zone_id, "")
+  acm_certificate_arn = try(local.common.acm_certificate_arn, "")
+
+  node_env = var.environment == "production" ? "production" : "development"
+
   app_env_vars = merge({
-    NODE_ENV             = "production"
-    DATABASE_URL         = "" # Populated from secrets at runtime
+    NODE_ENV             = local.node_env
     AWS_REGION           = var.aws_region
     COGNITO_USER_POOL_ID = local.common.cognito_user_pool_id
     COGNITO_CLIENT_ID    = local.common.cognito_user_pool_client_id
@@ -25,8 +29,7 @@ locals {
   }, var.app_environment_variables)
 
   api_env_vars = merge({
-    NODE_ENV             = "production"
-    DATABASE_URL         = "" # Populated from secrets at runtime
+    NODE_ENV             = local.node_env
     AWS_REGION           = var.aws_region
     COGNITO_USER_POOL_ID = local.common.cognito_user_pool_id
     COGNITO_CLIENT_ID    = local.common.cognito_user_pool_client_id
@@ -134,7 +137,7 @@ module "alb" {
   environment       = var.environment
   vpc_id            = local.common.vpc_id
   public_subnet_ids = local.common.public_subnet_ids
-  certificate_arn   = var.alb_certificate_arn
+  certificate_arn   = local.acm_certificate_arn
   tags              = var.tags
 }
 
@@ -168,7 +171,7 @@ resource "aws_lb_target_group" "api" {
 
 # API host-based routing on HTTPS listener
 resource "aws_lb_listener_rule" "api_host_https" {
-  count = var.enable_load_balancer && var.api_host_header != "" && var.alb_certificate_arn != "" ? 1 : 0
+  count = var.enable_load_balancer && var.api_host_header != "" && local.acm_certificate_arn != "" ? 1 : 0
 
   listener_arn = module.alb[0].https_listener_arn
   priority     = 100
@@ -187,7 +190,7 @@ resource "aws_lb_listener_rule" "api_host_https" {
 
 # API host-based routing on HTTP listener (when no certificate)
 resource "aws_lb_listener_rule" "api_host_http" {
-  count = var.enable_load_balancer && var.api_host_header != "" && var.alb_certificate_arn == "" ? 1 : 0
+  count = var.enable_load_balancer && var.api_host_header != "" && local.acm_certificate_arn == "" ? 1 : 0
 
   listener_arn = module.alb[0].http_listener_arn
   priority     = 100
@@ -319,8 +322,8 @@ resource "aws_security_group_rule" "rds_ingress_from_ecs_service_api" {
 # -----------------------------------------------------------------------------
 
 resource "aws_route53_record" "web" {
-  count   = var.create_dns_records && var.enable_load_balancer && var.domain_name != "" ? 1 : 0
-  zone_id = var.route53_zone_id
+  count   = var.create_dns_records && var.enable_load_balancer && var.domain_name != "" && local.route53_zone_id != "" ? 1 : 0
+  zone_id = local.route53_zone_id
   name    = var.domain_name
   type    = "A"
 
@@ -332,8 +335,8 @@ resource "aws_route53_record" "web" {
 }
 
 resource "aws_route53_record" "api" {
-  count   = var.create_dns_records && var.enable_load_balancer && var.api_host_header != "" ? 1 : 0
-  zone_id = var.route53_zone_id
+  count   = var.create_dns_records && var.enable_load_balancer && var.api_host_header != "" && local.route53_zone_id != "" ? 1 : 0
+  zone_id = local.route53_zone_id
   name    = var.api_host_header
   type    = "A"
 

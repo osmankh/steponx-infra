@@ -52,6 +52,25 @@ output "media_base_url" {
 }
 
 # -----------------------------------------------------------------------------
+# DNS / Route 53 Outputs
+# -----------------------------------------------------------------------------
+
+output "route53_zone_id" {
+  description = "Route 53 hosted zone ID"
+  value       = local.zone_id
+}
+
+output "route53_name_servers" {
+  description = "Name servers for the hosted zone (add these at your registrar)"
+  value       = var.create_hosted_zone && var.domain_name != "" ? aws_route53_zone.main[0].name_servers : []
+}
+
+output "acm_certificate_arn" {
+  description = "ARN of the ACM certificate"
+  value       = var.create_acm_certificate && length(var.acm_domain_names) > 0 ? aws_acm_certificate.main[0].arn : ""
+}
+
+# -----------------------------------------------------------------------------
 # SES Outputs (conditional)
 # -----------------------------------------------------------------------------
 

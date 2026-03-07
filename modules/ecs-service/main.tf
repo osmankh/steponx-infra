@@ -147,7 +147,7 @@ resource "aws_iam_role_policy" "task_app" {
 # -----------------------------------------------------------------------------
 
 resource "aws_cloudwatch_log_group" "this" {
-  name              = "/ecs/${var.project_name}-${var.environment}/${var.task_family}"
+  name              = "/ecs/${var.project_name}-${var.environment}/${local.service_name}"
   retention_in_days = 30
 
   tags = local.common_tags
@@ -217,12 +217,12 @@ resource "aws_ecs_task_definition" "this" {
 # -----------------------------------------------------------------------------
 
 resource "aws_security_group" "ecs_service" {
-  name        = "${var.project_name}-${var.environment}-${var.task_family}-ecs"
-  description = "Security group for ${var.task_family} ECS service"
+  name        = "${var.project_name}-${var.environment}-${local.service_name}-ecs"
+  description = "Security group for ${local.service_name} ECS service"
   vpc_id      = var.vpc_id
 
   tags = merge(local.common_tags, {
-    Name = "${var.project_name}-${var.environment}-${var.task_family}-ecs"
+    Name = "${var.project_name}-${var.environment}-${local.service_name}-ecs"
   })
 }
 
@@ -292,7 +292,7 @@ resource "aws_security_group_rule" "egress_dns_tcp" {
 # -----------------------------------------------------------------------------
 
 resource "aws_ecs_service" "this" {
-  name            = "${var.project_name}-${var.environment}-${var.task_family}"
+  name            = "${var.project_name}-${var.environment}-${local.service_name}"
   cluster         = var.cluster_id
   task_definition = aws_ecs_task_definition.this.arn
   desired_count   = var.desired_count
@@ -340,7 +340,7 @@ resource "aws_appautoscaling_target" "this" {
 }
 
 resource "aws_appautoscaling_policy" "cpu" {
-  name               = "${var.project_name}-${var.environment}-${var.task_family}-cpu"
+  name               = "${var.project_name}-${var.environment}-${local.service_name}-cpu"
   service_namespace  = aws_appautoscaling_target.this.service_namespace
   scalable_dimension = aws_appautoscaling_target.this.scalable_dimension
   resource_id        = aws_appautoscaling_target.this.resource_id
@@ -356,7 +356,7 @@ resource "aws_appautoscaling_policy" "cpu" {
 }
 
 resource "aws_appautoscaling_policy" "memory" {
-  name               = "${var.project_name}-${var.environment}-${var.task_family}-memory"
+  name               = "${var.project_name}-${var.environment}-${local.service_name}-memory"
   service_namespace  = aws_appautoscaling_target.this.service_namespace
   scalable_dimension = aws_appautoscaling_target.this.scalable_dimension
   resource_id        = aws_appautoscaling_target.this.resource_id

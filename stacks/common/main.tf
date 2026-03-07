@@ -20,6 +20,72 @@ module "media" {
   tags                   = var.tags
 }
 
+# -----------------------------------------------------------------------------
+# Route 53 Hosted Zone
+# -----------------------------------------------------------------------------
+
+resource "aws_route53_zone" "main" {
+  count = var.create_hosted_zone && var.domain_name != "" ? 1 : 0
+  name  = var.domain_name
+  tags  = var.tags
+}
+
+# Look up existing zone when not creating one (e.g. dev environment)
+data "aws_route53_zone" "main" {
+  count = !var.create_hosted_zone && var.domain_name != "" ? 1 : 0
+  name  = var.domain_name
+}
+
+locals {
+  zone_id = var.domain_name != "" ? (
+    var.create_hosted_zone ? aws_route53_zone.main[0].zone_id : data.aws_route53_zone.main[0].zone_id
+  ) : ""
+}
+
+# -----------------------------------------------------------------------------
+# ACM Certificate (DNS validated via Route 53)
+# -----------------------------------------------------------------------------
+
+resource "aws_acm_certificate" "main" {
+  count                     = var.create_acm_certificate && length(var.acm_domain_names) > 0 ? 1 : 0
+  domain_name               = var.acm_domain_names[0]
+  subject_alternative_names = slice(var.acm_domain_names, 1, length(var.acm_domain_names))
+  validation_method         = "DNS"
+
+  tags = var.tags
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+resource "aws_route53_record" "acm_validation" {
+  for_each = var.create_acm_certificate && length(var.acm_domain_names) > 0 && local.zone_id != "" ? {
+    for dvo in aws_acm_certificate.main[0].domain_validation_options : dvo.domain_name => {
+      name   = dvo.resource_record_name
+      record = dvo.resource_record_value
+      type   = dvo.resource_record_type
+    }
+  } : {}
+
+  zone_id         = local.zone_id
+  name            = each.value.name
+  type            = each.value.type
+  records         = [each.value.record]
+  ttl             = 60
+  allow_overwrite = true
+}
+
+resource "aws_acm_certificate_validation" "main" {
+  count                   = var.create_acm_certificate && length(var.acm_domain_names) > 0 && local.zone_id != "" ? 1 : 0
+  certificate_arn         = aws_acm_certificate.main[0].arn
+  validation_record_fqdns = [for record in aws_route53_record.acm_validation : record.fqdn]
+}
+
+# -----------------------------------------------------------------------------
+# SES
+# -----------------------------------------------------------------------------
+
 module "ses" {
   source = "../../modules/ses"
   count  = var.domain_name != "" ? 1 : 0
