@@ -6,7 +6,7 @@ data "terraform_remote_state" "common" {
   backend = "s3"
   config = {
     bucket = "steponx-terraform-state"
-    key    = "common/terraform.tfstate"
+    key    = "${var.environment}/common/terraform.tfstate"
     region = "eu-central-1"
   }
 }

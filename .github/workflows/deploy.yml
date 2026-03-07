@@ -1,20 +1,32 @@
 # Infrastructure deployment workflow
-# - PRs: plans all stacks and posts as PR comments
-# - Push to main: plans and applies stacks in order (common -> backend)
-# - Manual dispatch: select which stack(s) to deploy
+# - Push to main: plans dev + production, auto-applies dev only
+# - Tag (release-*): applies production
+# - PRs: plans all and posts as PR comments
+# - Manual dispatch: select environment and stack
 
 name: Deploy Infrastructure
 
 on:
   push:
     branches: [main]
+    tags:
+      - "release-*"
     paths:
       - "stacks/**"
       - "modules/**"
+      - "environments/**"
   pull_request:
     branches: [main]
   workflow_dispatch:
     inputs:
+      environment:
+        description: "Environment to deploy"
+        required: true
+        default: "dev"
+        type: choice
+        options:
+          - dev
+          - production
       stack:
         description: "Stack to deploy"
         required: true
@@ -41,15 +53,54 @@ env:
 
 jobs:
   # ---------------------------------------------------------------------------
-  # Plan jobs - run on every trigger
+  # Determine what to plan and apply
+  # ---------------------------------------------------------------------------
+  setup:
+    name: Setup
+    runs-on: ubuntu-latest
+    outputs:
+      plan_envs: ${{ steps.set.outputs.plan_envs }}
+      apply_envs: ${{ steps.set.outputs.apply_envs }}
+    steps:
+      - id: set
+        run: |
+          EVENT="${{ github.event_name }}"
+          REF="${{ github.ref }}"
+
+          if [[ "$EVENT" == "workflow_dispatch" ]]; then
+            ENV="${{ github.event.inputs.environment }}"
+            echo "plan_envs=[\"$ENV\"]" >> $GITHUB_OUTPUT
+            echo "apply_envs=[\"$ENV\"]" >> $GITHUB_OUTPUT
+
+          elif [[ "$EVENT" == "pull_request" ]]; then
+            echo 'plan_envs=["dev","production"]' >> $GITHUB_OUTPUT
+            echo 'apply_envs=[]' >> $GITHUB_OUTPUT
+
+          elif [[ "$REF" == refs/tags/release-* ]]; then
+            echo 'plan_envs=["production"]' >> $GITHUB_OUTPUT
+            echo 'apply_envs=["production"]' >> $GITHUB_OUTPUT
+
+          else
+            # Push to main: plan both, apply dev only
+            echo 'plan_envs=["dev","production"]' >> $GITHUB_OUTPUT
+            echo 'apply_envs=["dev"]' >> $GITHUB_OUTPUT
+          fi
+
+  # ---------------------------------------------------------------------------
+  # Plan Common
   # ---------------------------------------------------------------------------
   plan-common:
-    name: Plan Common Stack
+    name: Plan Common (${{ matrix.env }})
     runs-on: ubuntu-latest
+    needs: setup
     if: >-
-      github.event_name != 'workflow_dispatch' ||
-      github.event.inputs.stack == 'all' ||
-      github.event.inputs.stack == 'common'
+      needs.setup.outputs.plan_envs != '[]' &&
+      (github.event_name != 'workflow_dispatch' ||
+       github.event.inputs.stack == 'all' ||
+       github.event.inputs.stack == 'common')
+    strategy:
+      matrix:
+        env: ${{ fromJson(needs.setup.outputs.plan_envs) }}
 
     steps:
       - name: Checkout code
@@ -71,7 +122,7 @@ jobs:
         run: |
           tofu init \
             -backend-config="bucket=${{ env.TF_STATE_BUCKET }}" \
-            -backend-config="key=common/terraform.tfstate" \
+            -backend-config="key=${{ matrix.env }}/common/terraform.tfstate" \
             -backend-config="region=${{ env.AWS_REGION }}" \
             -backend-config="dynamodb_table=${{ env.TF_LOCK_TABLE }}" \
             -backend-config="encrypt=true"
@@ -80,7 +131,9 @@ jobs:
         id: plan
         working-directory: stacks/common/
         run: |
-          tofu plan -out=plan.tfplan -no-color 2>&1 | tee plan-output.txt
+          tofu plan \
+            -var-file="../../environments/${{ matrix.env }}/common.tfvars" \
+            -out=plan.tfplan -no-color 2>&1 | tee plan-output.txt
           echo "plan_text<<PLAN_EOF" >> $GITHUB_OUTPUT
           head -c 60000 plan-output.txt >> $GITHUB_OUTPUT
           echo "PLAN_EOF" >> $GITHUB_OUTPUT
@@ -91,75 +144,7 @@ jobs:
         with:
           script: |
             const plan = `${{ steps.plan.outputs.plan_text }}`;
-            const body = `### Terraform Plan - Common Stack
-
-            <details>
-            <summary>Show Plan</summary>
-
-            \`\`\`hcl
-            ${plan}
-            \`\`\`
-
-            </details>
-
-            *Pushed by @${{ github.actor }}, Action: \`${{ github.event_name }}\`*`;
-
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: body
-            });
-
-  plan-backend:
-    name: Plan Backend Stack
-    runs-on: ubuntu-latest
-    if: >-
-      github.event_name != 'workflow_dispatch' ||
-      github.event.inputs.stack == 'all' ||
-      github.event.inputs.stack == 'backend'
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup OpenTofu
-        uses: opentofu/setup-opentofu@v1
-        with:
-          tofu_version: "~1.9"
-
-      - name: Configure AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: OpenTofu Init
-        working-directory: stacks/backend/
-        run: |
-          tofu init \
-            -backend-config="bucket=${{ env.TF_STATE_BUCKET }}" \
-            -backend-config="key=backend/terraform.tfstate" \
-            -backend-config="region=${{ env.AWS_REGION }}" \
-            -backend-config="dynamodb_table=${{ env.TF_LOCK_TABLE }}" \
-            -backend-config="encrypt=true"
-
-      - name: OpenTofu Plan
-        id: plan
-        working-directory: stacks/backend/
-        run: |
-          tofu plan -out=plan.tfplan -no-color 2>&1 | tee plan-output.txt
-          echo "plan_text<<PLAN_EOF" >> $GITHUB_OUTPUT
-          head -c 60000 plan-output.txt >> $GITHUB_OUTPUT
-          echo "PLAN_EOF" >> $GITHUB_OUTPUT
-
-      - name: Post plan to PR
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const plan = `${{ steps.plan.outputs.plan_text }}`;
-            const body = `### Terraform Plan - Backend Stack
+            const body = `### Terraform Plan - Common Stack (${{ matrix.env }})
 
             <details>
             <summary>Show Plan</summary>
@@ -180,17 +165,100 @@ jobs:
             });
 
   # ---------------------------------------------------------------------------
-  # Apply jobs - only on push to main or manual dispatch
+  # Plan Backend
+  # ---------------------------------------------------------------------------
+  plan-backend:
+    name: Plan Backend (${{ matrix.env }})
+    runs-on: ubuntu-latest
+    needs: setup
+    if: >-
+      needs.setup.outputs.plan_envs != '[]' &&
+      (github.event_name != 'workflow_dispatch' ||
+       github.event.inputs.stack == 'all' ||
+       github.event.inputs.stack == 'backend')
+    strategy:
+      matrix:
+        env: ${{ fromJson(needs.setup.outputs.plan_envs) }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: "~1.9"
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: OpenTofu Init
+        working-directory: stacks/backend/
+        run: |
+          tofu init \
+            -backend-config="bucket=${{ env.TF_STATE_BUCKET }}" \
+            -backend-config="key=${{ matrix.env }}/backend/terraform.tfstate" \
+            -backend-config="region=${{ env.AWS_REGION }}" \
+            -backend-config="dynamodb_table=${{ env.TF_LOCK_TABLE }}" \
+            -backend-config="encrypt=true"
+
+      - name: OpenTofu Plan
+        id: plan
+        working-directory: stacks/backend/
+        run: |
+          tofu plan \
+            -var-file="../../environments/${{ matrix.env }}/backend.tfvars" \
+            -out=plan.tfplan -no-color 2>&1 | tee plan-output.txt
+          echo "plan_text<<PLAN_EOF" >> $GITHUB_OUTPUT
+          head -c 60000 plan-output.txt >> $GITHUB_OUTPUT
+          echo "PLAN_EOF" >> $GITHUB_OUTPUT
+
+      - name: Post plan to PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const plan = `${{ steps.plan.outputs.plan_text }}`;
+            const body = `### Terraform Plan - Backend Stack (${{ matrix.env }})
+
+            <details>
+            <summary>Show Plan</summary>
+
+            \`\`\`hcl
+            ${plan}
+            \`\`\`
+
+            </details>
+
+            *Pushed by @${{ github.actor }}, Action: \`${{ github.event_name }}\`*`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
+
+  # ---------------------------------------------------------------------------
+  # Apply Common
   # ---------------------------------------------------------------------------
   apply-common:
-    name: Apply Common Stack
+    name: Apply Common (${{ matrix.env }})
     runs-on: ubuntu-latest
-    needs: plan-common
+    needs: [setup, plan-common]
     if: >-
-      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
-      (github.event_name == 'workflow_dispatch' &&
-       (github.event.inputs.stack == 'all' || github.event.inputs.stack == 'common'))
-    environment: production
+      needs.setup.outputs.apply_envs != '[]' &&
+      (github.event_name != 'workflow_dispatch' ||
+       github.event.inputs.stack == 'all' ||
+       github.event.inputs.stack == 'common')
+    strategy:
+      fail-fast: false
+      matrix:
+        env: ${{ fromJson(needs.setup.outputs.apply_envs) }}
+    environment: ${{ matrix.env }}
 
     steps:
       - name: Checkout code
@@ -212,33 +280,43 @@ jobs:
         run: |
           tofu init \
             -backend-config="bucket=${{ env.TF_STATE_BUCKET }}" \
-            -backend-config="key=common/terraform.tfstate" \
+            -backend-config="key=${{ matrix.env }}/common/terraform.tfstate" \
             -backend-config="region=${{ env.AWS_REGION }}" \
             -backend-config="dynamodb_table=${{ env.TF_LOCK_TABLE }}" \
             -backend-config="encrypt=true"
 
       - name: OpenTofu Apply
         working-directory: stacks/common/
-        run: tofu apply -auto-approve
+        run: |
+          tofu apply -auto-approve \
+            -var-file="../../environments/${{ matrix.env }}/common.tfvars"
 
       - name: Post outputs to summary
         working-directory: stacks/common/
         run: |
-          echo "## Common Stack Outputs" >> $GITHUB_STEP_SUMMARY
+          echo "## Common Stack Outputs (${{ matrix.env }})" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           tofu output >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
+  # ---------------------------------------------------------------------------
+  # Apply Backend
+  # ---------------------------------------------------------------------------
   apply-backend:
-    name: Apply Backend Stack
+    name: Apply Backend (${{ matrix.env }})
     runs-on: ubuntu-latest
-    needs: apply-common
+    needs: [setup, apply-common]
     if: >-
-      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
-      (github.event_name == 'workflow_dispatch' &&
-       (github.event.inputs.stack == 'all' || github.event.inputs.stack == 'backend'))
-    environment: production
+      needs.setup.outputs.apply_envs != '[]' &&
+      (github.event_name != 'workflow_dispatch' ||
+       github.event.inputs.stack == 'all' ||
+       github.event.inputs.stack == 'backend')
+    strategy:
+      fail-fast: false
+      matrix:
+        env: ${{ fromJson(needs.setup.outputs.apply_envs) }}
+    environment: ${{ matrix.env }}
 
     steps:
       - name: Checkout code
@@ -260,19 +338,21 @@ jobs:
         run: |
           tofu init \
             -backend-config="bucket=${{ env.TF_STATE_BUCKET }}" \
-            -backend-config="key=backend/terraform.tfstate" \
+            -backend-config="key=${{ matrix.env }}/backend/terraform.tfstate" \
             -backend-config="region=${{ env.AWS_REGION }}" \
             -backend-config="dynamodb_table=${{ env.TF_LOCK_TABLE }}" \
             -backend-config="encrypt=true"
 
       - name: OpenTofu Apply
         working-directory: stacks/backend/
-        run: tofu apply -auto-approve
+        run: |
+          tofu apply -auto-approve \
+            -var-file="../../environments/${{ matrix.env }}/backend.tfvars"
 
       - name: Post outputs to summary
         working-directory: stacks/backend/
         run: |
-          echo "## Backend Stack Outputs" >> $GITHUB_STEP_SUMMARY
+          echo "## Backend Stack Outputs (${{ matrix.env }})" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           tofu output >> $GITHUB_STEP_SUMMARY
