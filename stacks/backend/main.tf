@@ -20,8 +20,8 @@ locals {
     AWS_REGION           = var.aws_region
     COGNITO_USER_POOL_ID = local.common.cognito_user_pool_id
     COGNITO_CLIENT_ID    = local.common.cognito_user_pool_client_id
-    MEDIA_BUCKET         = local.common.media_bucket_name
-    MEDIA_URL            = local.common.media_base_url
+    MEDIA_BUCKET         = try(local.common.media_bucket_name, "")
+    MEDIA_URL            = try(local.common.media_base_url, "")
   }, var.app_environment_variables)
 
   api_env_vars = merge({
@@ -30,8 +30,8 @@ locals {
     AWS_REGION           = var.aws_region
     COGNITO_USER_POOL_ID = local.common.cognito_user_pool_id
     COGNITO_CLIENT_ID    = local.common.cognito_user_pool_client_id
-    MEDIA_BUCKET         = local.common.media_bucket_name
-    MEDIA_URL            = local.common.media_base_url
+    MEDIA_BUCKET         = try(local.common.media_bucket_name, "")
+    MEDIA_URL            = try(local.common.media_base_url, "")
     PORT                 = tostring(var.api_container_port)
   }, var.api_environment_variables)
 }
