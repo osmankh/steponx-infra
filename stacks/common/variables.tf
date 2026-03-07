@@ -22,23 +22,31 @@ variable "domain_name" {
   default     = ""
 }
 
-variable "enable_cdn" {
-  description = "Enable S3+CloudFront CDN (requires account verification for CloudFront)"
+# -----------------------------------------------------------------------------
+# Media Bucket (S3 + optional CloudFront)
+# -----------------------------------------------------------------------------
+
+variable "enable_media_bucket" {
+  description = "Enable the S3 media bucket for product images and uploads"
+  type        = bool
+  default     = true
+}
+
+variable "media_cloudfront_enabled" {
+  description = "Enable CloudFront distribution for the media bucket"
   type        = bool
   default     = false
 }
 
-variable "cdn_domain_name" {
-  description = "Custom domain for CloudFront distribution"
-  type        = string
-  default     = ""
+variable "media_allowed_origins" {
+  description = "Origins allowed to upload files to the media bucket via CORS"
+  type        = list(string)
+  default     = ["*"]
 }
 
-variable "cdn_acm_certificate_arn" {
-  description = "ACM certificate ARN for CloudFront custom domain (must be in us-east-1)"
-  type        = string
-  default     = ""
-}
+# -----------------------------------------------------------------------------
+# Cognito
+# -----------------------------------------------------------------------------
 
 variable "cognito_callback_urls" {
   description = "Allowed callback URLs for Cognito user pool client"
@@ -52,6 +60,10 @@ variable "cognito_logout_urls" {
   default     = ["http://localhost:3000"]
 }
 
+# -----------------------------------------------------------------------------
+# VPC
+# -----------------------------------------------------------------------------
+
 variable "enable_nat_gateway" {
   description = "Enable NAT Gateway for private subnet internet access"
   type        = bool
@@ -63,6 +75,10 @@ variable "enable_vpc_flow_logs" {
   type        = bool
   default     = false
 }
+
+# -----------------------------------------------------------------------------
+# Tags
+# -----------------------------------------------------------------------------
 
 variable "tags" {
   description = "Additional tags to apply to all resources"

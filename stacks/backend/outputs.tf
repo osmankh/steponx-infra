@@ -3,13 +3,23 @@
 # -----------------------------------------------------------------------------
 
 output "ecr_repository_url" {
-  description = "URL of the ECR repository"
+  description = "URL of the web ECR repository"
   value       = module.ecr.repository_url
 }
 
 output "ecr_repository_arn" {
-  description = "ARN of the ECR repository"
+  description = "ARN of the web ECR repository"
   value       = module.ecr.repository_arn
+}
+
+output "ecr_api_repository_url" {
+  description = "URL of the API ECR repository"
+  value       = module.ecr_api.repository_url
+}
+
+output "ecr_api_repository_arn" {
+  description = "ARN of the API ECR repository"
+  value       = module.ecr_api.repository_arn
 }
 
 # -----------------------------------------------------------------------------
@@ -32,32 +42,51 @@ output "ecs_log_group_name" {
 }
 
 # -----------------------------------------------------------------------------
-# ECS Service Outputs
+# ECS Web Service Outputs
 # -----------------------------------------------------------------------------
 
 output "ecs_service_name" {
-  description = "Name of the ECS service"
+  description = "Name of the web ECS service"
   value       = module.ecs_service.service_name
 }
 
 output "ecs_task_definition_arn" {
-  description = "ARN of the ECS task definition"
+  description = "ARN of the web ECS task definition"
   value       = module.ecs_service.task_definition_arn
 }
 
 output "ecs_task_role_arn" {
-  description = "ARN of the ECS task IAM role (runtime permissions)"
+  description = "ARN of the web ECS task IAM role (runtime permissions)"
   value       = module.ecs_service.task_role_arn
 }
 
 output "ecs_execution_role_arn" {
-  description = "ARN of the ECS execution IAM role"
+  description = "ARN of the web ECS execution IAM role"
   value       = module.ecs_service.execution_role_arn
 }
 
 output "ecs_security_group_id" {
-  description = "ID of the ECS service security group"
+  description = "ID of the web ECS service security group"
   value       = module.ecs_service.security_group_id
+}
+
+# -----------------------------------------------------------------------------
+# ECS API Service Outputs
+# -----------------------------------------------------------------------------
+
+output "ecs_api_service_name" {
+  description = "Name of the API ECS service"
+  value       = module.ecs_service_api.service_name
+}
+
+output "ecs_api_task_definition_arn" {
+  description = "ARN of the API ECS task definition"
+  value       = module.ecs_service_api.task_definition_arn
+}
+
+output "ecs_api_security_group_id" {
+  description = "ID of the API ECS service security group"
+  value       = module.ecs_service_api.security_group_id
 }
 
 # -----------------------------------------------------------------------------
@@ -80,8 +109,13 @@ output "alb_arn" {
 }
 
 output "alb_target_group_arn" {
-  description = "ARN of the ALB target group"
+  description = "ARN of the web ALB target group"
   value       = var.enable_load_balancer ? module.alb[0].target_group_arn : ""
+}
+
+output "alb_api_target_group_arn" {
+  description = "ARN of the API ALB target group"
+  value       = var.enable_load_balancer ? aws_lb_target_group.api[0].arn : ""
 }
 
 output "alb_security_group_id" {

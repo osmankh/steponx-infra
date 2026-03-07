@@ -8,15 +8,16 @@ module "vpc" {
   tags               = var.tags
 }
 
-module "cdn" {
+module "media" {
   source = "../../modules/s3-cloudfront"
-  count  = var.enable_cdn ? 1 : 0
+  count  = var.enable_media_bucket ? 1 : 0
 
-  project_name        = var.project_name
-  environment         = var.environment
-  domain_name         = var.cdn_domain_name
-  acm_certificate_arn = var.cdn_acm_certificate_arn
-  tags                = var.tags
+  project_name           = var.project_name
+  environment            = var.environment
+  bucket_suffix          = "media"
+  enable_cloudfront      = var.media_cloudfront_enabled
+  allowed_upload_origins = var.media_allowed_origins
+  tags                   = var.tags
 }
 
 module "ses" {

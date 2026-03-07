@@ -23,12 +23,12 @@ locals {
     var.tags,
   )
 
-  bucket_name       = "${var.project_name}-${var.environment}-assets"
+  bucket_name       = "${var.project_name}-${var.environment}-${var.bucket_suffix}"
   has_custom_domain = var.domain_name != ""
 }
 
 # -----------------------------------------------------------------------------
-# S3 Bucket — Private asset storage
+# S3 Bucket — Private storage
 # -----------------------------------------------------------------------------
 
 resource "aws_s3_bucket" "assets" {
@@ -61,25 +61,27 @@ resource "aws_s3_bucket_cors_configuration" "assets" {
     allowed_headers = ["*"]
     allowed_methods = ["GET"]
     allowed_origins = ["*"]
-    expose_headers  = ["ETag"]
+    expose_headers  = ["ETag", "Content-Length"]
     max_age_seconds = 3600
   }
 
   cors_rule {
     allowed_headers = ["*"]
-    allowed_methods = ["PUT"]
-    allowed_origins = local.has_custom_domain ? ["https://${var.domain_name}"] : ["https://${aws_cloudfront_distribution.this.domain_name}"]
+    allowed_methods = ["PUT", "POST", "DELETE"]
+    allowed_origins = var.allowed_upload_origins
     expose_headers  = ["ETag"]
     max_age_seconds = 3600
   }
 }
 
 # -----------------------------------------------------------------------------
-# CloudFront Origin Access Control
+# CloudFront Origin Access Control (only when CloudFront is enabled)
 # -----------------------------------------------------------------------------
 
 resource "aws_cloudfront_origin_access_control" "this" {
-  name                              = "${var.project_name}-${var.environment}-oac"
+  count = var.enable_cloudfront ? 1 : 0
+
+  name                              = "${var.project_name}-${var.environment}-${var.bucket_suffix}-oac"
   description                       = "OAC for ${local.bucket_name} S3 bucket"
   origin_access_control_origin_type = "s3"
   signing_behavior                  = "always"
@@ -87,14 +89,15 @@ resource "aws_cloudfront_origin_access_control" "this" {
 }
 
 # -----------------------------------------------------------------------------
-# CloudFront Distribution
+# CloudFront Distribution (only when enabled)
 # -----------------------------------------------------------------------------
 
 resource "aws_cloudfront_distribution" "this" {
-  comment             = "${var.project_name} ${var.environment} asset distribution"
+  count = var.enable_cloudfront ? 1 : 0
+
+  comment             = "${var.project_name} ${var.environment} ${var.bucket_suffix} distribution"
   enabled             = true
   is_ipv6_enabled     = true
-  default_root_object = "index.html"
   price_class         = var.price_class
   aliases             = local.has_custom_domain ? [var.domain_name] : []
   wait_for_deployment = false
@@ -102,24 +105,17 @@ resource "aws_cloudfront_distribution" "this" {
   origin {
     domain_name              = aws_s3_bucket.assets.bucket_regional_domain_name
     origin_id                = "s3-${local.bucket_name}"
-    origin_access_control_id = aws_cloudfront_origin_access_control.this.id
+    origin_access_control_id = aws_cloudfront_origin_access_control.this[0].id
   }
 
   default_cache_behavior {
-    allowed_methods        = ["GET", "HEAD"]
+    allowed_methods        = ["GET", "HEAD", "OPTIONS"]
     cached_methods         = ["GET", "HEAD"]
     target_origin_id       = "s3-${local.bucket_name}"
     viewer_protocol_policy = "redirect-to-https"
     compress               = true
 
-    cache_policy_id = data.aws_cloudfront_cache_policy.caching_optimized.id
-  }
-
-  custom_error_response {
-    error_code            = 403
-    response_code         = 404
-    response_page_path    = "/404.html"
-    error_caching_min_ttl = 60
+    cache_policy_id = data.aws_cloudfront_cache_policy.caching_optimized[0].id
   }
 
   dynamic "viewer_certificate" {
@@ -148,20 +144,25 @@ resource "aws_cloudfront_distribution" "this" {
 }
 
 # -----------------------------------------------------------------------------
-# Managed Cache Policy — CachingOptimized
+# Managed Cache Policy — CachingOptimized (only when CloudFront is enabled)
 # -----------------------------------------------------------------------------
 
 data "aws_cloudfront_cache_policy" "caching_optimized" {
+  count = var.enable_cloudfront ? 1 : 0
+
   name = "Managed-CachingOptimized"
 }
 
 # -----------------------------------------------------------------------------
-# S3 Bucket Policy — Allow CloudFront OAC access
+# S3 Bucket Policy — Allow CloudFront OAC access (only when CloudFront is enabled)
 # -----------------------------------------------------------------------------
 
-data "aws_caller_identity" "current" {}
+data "aws_caller_identity" "current" {
+  count = var.enable_cloudfront ? 1 : 0
+}
 
 resource "aws_s3_bucket_policy" "assets" {
+  count  = var.enable_cloudfront ? 1 : 0
   bucket = aws_s3_bucket.assets.id
 
   policy = jsonencode({
@@ -177,7 +178,7 @@ resource "aws_s3_bucket_policy" "assets" {
         Resource = "${aws_s3_bucket.assets.arn}/*"
         Condition = {
           StringEquals = {
-            "AWS:SourceArn" = aws_cloudfront_distribution.this.arn
+            "AWS:SourceArn" = aws_cloudfront_distribution.this[0].arn
           }
         }
       }

@@ -28,27 +28,27 @@ output "nat_gateway_id" {
 }
 
 # -----------------------------------------------------------------------------
-# CDN Outputs
+# Media Bucket Outputs
 # -----------------------------------------------------------------------------
 
-output "cdn_bucket_name" {
-  description = "Name of the S3 bucket for CDN assets"
-  value       = var.enable_cdn ? module.cdn[0].bucket_name : ""
+output "media_bucket_name" {
+  description = "Name of the S3 media bucket"
+  value       = var.enable_media_bucket ? module.media[0].bucket_name : ""
 }
 
-output "cdn_bucket_arn" {
-  description = "ARN of the S3 bucket for CDN assets"
-  value       = var.enable_cdn ? module.cdn[0].bucket_arn : ""
+output "media_bucket_arn" {
+  description = "ARN of the S3 media bucket"
+  value       = var.enable_media_bucket ? module.media[0].bucket_arn : ""
 }
 
-output "cdn_distribution_id" {
-  description = "ID of the CloudFront distribution"
-  value       = var.enable_cdn ? module.cdn[0].cloudfront_distribution_id : ""
+output "media_cloudfront_domain_name" {
+  description = "Domain name of the media CloudFront distribution (empty when disabled)"
+  value       = var.enable_media_bucket && var.media_cloudfront_enabled ? module.media[0].cloudfront_domain_name : ""
 }
 
-output "cdn_domain_name" {
-  description = "Domain name of the CloudFront distribution"
-  value       = var.enable_cdn ? module.cdn[0].cloudfront_domain_name : ""
+output "media_base_url" {
+  description = "Base URL for media access (CloudFront URL if enabled, otherwise S3 regional domain)"
+  value       = var.enable_media_bucket ? (var.media_cloudfront_enabled ? "https://${module.media[0].cloudfront_domain_name}" : "https://${module.media[0].bucket_regional_domain_name}") : ""
 }
 
 # -----------------------------------------------------------------------------

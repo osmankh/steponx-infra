@@ -28,6 +28,12 @@ variable "environment" {
   default     = "bootstrap"
 }
 
+variable "github_app_repo" {
+  description = "GitHub repository name for the application code"
+  type        = string
+  default     = "steponx"
+}
+
 variable "tags" {
   description = "Additional tags to apply to all resources"
   type        = map(string)

@@ -8,8 +8,20 @@ variable "environment" {
   type        = string
 }
 
+variable "bucket_suffix" {
+  description = "Suffix for the S3 bucket name (e.g. media, assets)"
+  type        = string
+  default     = "media"
+}
+
+variable "enable_cloudfront" {
+  description = "Enable CloudFront distribution in front of the S3 bucket"
+  type        = bool
+  default     = false
+}
+
 variable "domain_name" {
-  description = "Custom domain name for the CloudFront distribution (e.g. assets.steponx.com). Leave empty to use the default CloudFront domain."
+  description = "Custom domain name for the CloudFront distribution (e.g. media.steponx.com). Leave empty to use the default CloudFront domain."
   type        = string
   default     = ""
 }
@@ -29,6 +41,12 @@ variable "price_class" {
     condition     = contains(["PriceClass_100", "PriceClass_200", "PriceClass_All"], var.price_class)
     error_message = "price_class must be one of: PriceClass_100, PriceClass_200, PriceClass_All."
   }
+}
+
+variable "allowed_upload_origins" {
+  description = "Origins allowed to upload files via CORS (PUT/DELETE)"
+  type        = list(string)
+  default     = ["*"]
 }
 
 variable "tags" {

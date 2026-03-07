@@ -105,6 +105,12 @@ variable "secrets" {
   default     = {}
 }
 
+variable "service_name" {
+  description = "Short name for the service, used in IAM role names to avoid collisions across module instances"
+  type        = string
+  default     = ""
+}
+
 variable "tags" {
   description = "Additional tags to apply to all resources"
   type        = map(string)

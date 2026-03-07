@@ -42,6 +42,12 @@ variable "enable_deletion_protection" {
   default     = false
 }
 
+variable "target_group_port" {
+  description = "Port for the default target group"
+  type        = number
+  default     = 3000
+}
+
 variable "tags" {
   description = "Additional tags to apply to all resources"
   type        = map(string)

@@ -12,6 +12,8 @@ terraform {
 data "aws_region" "current" {}
 
 locals {
+  service_name = var.service_name != "" ? var.service_name : var.task_family
+
   common_tags = merge(
     {
       Project     = var.project_name
@@ -27,7 +29,7 @@ locals {
 # -----------------------------------------------------------------------------
 
 resource "aws_iam_role" "execution" {
-  name = "${var.project_name}-${var.environment}-execution"
+  name_prefix = "${var.project_name}-${var.environment}-${local.service_name}-exec-"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -42,6 +44,10 @@ resource "aws_iam_role" "execution" {
     ]
   })
 
+  lifecycle {
+    create_before_destroy = true
+  }
+
   tags = local.common_tags
 }
 
@@ -51,8 +57,8 @@ resource "aws_iam_role_policy_attachment" "execution_managed" {
 }
 
 resource "aws_iam_role_policy" "execution_secrets" {
-  name = "${var.project_name}-${var.environment}-execution-secrets"
-  role = aws_iam_role.execution.id
+  name_prefix = "${local.service_name}-exec-secrets-"
+  role        = aws_iam_role.execution.id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -74,7 +80,7 @@ resource "aws_iam_role_policy" "execution_secrets" {
 # -----------------------------------------------------------------------------
 
 resource "aws_iam_role" "task" {
-  name = "${var.project_name}-${var.environment}-task"
+  name_prefix = "${var.project_name}-${var.environment}-${local.service_name}-task-"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -89,12 +95,16 @@ resource "aws_iam_role" "task" {
     ]
   })
 
+  lifecycle {
+    create_before_destroy = true
+  }
+
   tags = local.common_tags
 }
 
 resource "aws_iam_role_policy" "task_app" {
-  name = "${var.project_name}-${var.environment}-task-app"
-  role = aws_iam_role.task.id
+  name_prefix = "${local.service_name}-task-app-"
+  role        = aws_iam_role.task.id
 
   policy = jsonencode({
     Version = "2012-10-17"

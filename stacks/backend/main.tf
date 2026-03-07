@@ -20,9 +20,20 @@ locals {
     AWS_REGION           = var.aws_region
     COGNITO_USER_POOL_ID = local.common.cognito_user_pool_id
     COGNITO_CLIENT_ID    = local.common.cognito_user_pool_client_id
-    CDN_DOMAIN           = local.common.cdn_domain_name
-    NEXT_PUBLIC_CDN_URL  = local.common.cdn_domain_name != "" ? "https://${local.common.cdn_domain_name}" : ""
+    MEDIA_BUCKET         = local.common.media_bucket_name
+    MEDIA_URL            = local.common.media_base_url
   }, var.app_environment_variables)
+
+  api_env_vars = merge({
+    NODE_ENV             = "production"
+    DATABASE_URL         = "" # Populated from secrets at runtime
+    AWS_REGION           = var.aws_region
+    COGNITO_USER_POOL_ID = local.common.cognito_user_pool_id
+    COGNITO_CLIENT_ID    = local.common.cognito_user_pool_client_id
+    MEDIA_BUCKET         = local.common.media_bucket_name
+    MEDIA_URL            = local.common.media_base_url
+    PORT                 = tostring(var.api_container_port)
+  }, var.api_environment_variables)
 }
 
 # -----------------------------------------------------------------------------
@@ -52,7 +63,7 @@ resource "aws_security_group" "ecs_tasks" {
   }
 }
 
-# Allow inbound from ALB to ECS tasks on the container port
+# Allow inbound from ALB to ECS tasks on the web container port
 resource "aws_security_group_rule" "ecs_ingress_from_alb" {
   count = var.enable_load_balancer ? 1 : 0
 
@@ -62,11 +73,24 @@ resource "aws_security_group_rule" "ecs_ingress_from_alb" {
   protocol                 = "tcp"
   security_group_id        = aws_security_group.ecs_tasks.id
   source_security_group_id = module.alb[0].security_group_id
-  description              = "Allow inbound from ALB"
+  description              = "Allow inbound from ALB on web port"
+}
+
+# Allow inbound from ALB to ECS tasks on the API container port
+resource "aws_security_group_rule" "ecs_ingress_from_alb_api" {
+  count = var.enable_load_balancer ? 1 : 0
+
+  type                     = "ingress"
+  from_port                = var.api_container_port
+  to_port                  = var.api_container_port
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.ecs_tasks.id
+  source_security_group_id = module.alb[0].security_group_id
+  description              = "Allow inbound from ALB on API port"
 }
 
 # -----------------------------------------------------------------------------
-# ECR Repository
+# ECR Repositories
 # -----------------------------------------------------------------------------
 
 module "ecr" {
@@ -75,6 +99,15 @@ module "ecr" {
   project_name = var.project_name
   environment  = var.environment
   tags         = var.tags
+}
+
+module "ecr_api" {
+  source = "../../modules/ecr"
+
+  project_name    = var.project_name
+  environment     = var.environment
+  repository_name = "${var.project_name}-${var.environment}-api"
+  tags            = var.tags
 }
 
 # -----------------------------------------------------------------------------
@@ -106,6 +139,72 @@ module "alb" {
 }
 
 # -----------------------------------------------------------------------------
+# API Target Group & Listener Rules
+# -----------------------------------------------------------------------------
+
+resource "aws_lb_target_group" "api" {
+  count = var.enable_load_balancer ? 1 : 0
+
+  name        = "${var.project_name}-${var.environment}-api-tg"
+  port        = var.api_container_port
+  protocol    = "HTTP"
+  vpc_id      = local.common.vpc_id
+  target_type = "ip"
+
+  health_check {
+    enabled             = true
+    path                = "/health"
+    matcher             = "200"
+    healthy_threshold   = 3
+    unhealthy_threshold = 3
+    timeout             = 5
+    interval            = 30
+  }
+
+  tags = merge(var.tags, {
+    Name = "${var.project_name}-${var.environment}-api-tg"
+  })
+}
+
+# API host-based routing on HTTPS listener
+resource "aws_lb_listener_rule" "api_host_https" {
+  count = var.enable_load_balancer && var.api_host_header != "" && var.alb_certificate_arn != "" ? 1 : 0
+
+  listener_arn = module.alb[0].https_listener_arn
+  priority     = 100
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.api[0].arn
+  }
+
+  condition {
+    host_header {
+      values = [var.api_host_header]
+    }
+  }
+}
+
+# API host-based routing on HTTP listener (when no certificate)
+resource "aws_lb_listener_rule" "api_host_http" {
+  count = var.enable_load_balancer && var.api_host_header != "" && var.alb_certificate_arn == "" ? 1 : 0
+
+  listener_arn = module.alb[0].http_listener_arn
+  priority     = 100
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.api[0].arn
+  }
+
+  condition {
+    host_header {
+      values = [var.api_host_header]
+    }
+  }
+}
+
+# -----------------------------------------------------------------------------
 # RDS PostgreSQL
 # -----------------------------------------------------------------------------
 
@@ -124,7 +223,7 @@ module "rds" {
 }
 
 # -----------------------------------------------------------------------------
-# ECS Service (Next.js Application)
+# ECS Service — Web (Next.js)
 # -----------------------------------------------------------------------------
 
 module "ecs_service" {
@@ -132,6 +231,7 @@ module "ecs_service" {
 
   project_name          = var.project_name
   environment           = var.environment
+  service_name          = "web"
   cluster_id            = module.ecs_cluster.cluster_id
   task_family           = "${var.project_name}-${var.environment}"
   container_image       = var.container_image != "" ? var.container_image : "${module.ecr.repository_url}:latest"
@@ -157,7 +257,7 @@ module "ecs_service" {
   tags = var.tags
 }
 
-# Allow ECS service's own SG to also access RDS (in addition to the stack SG)
+# Allow web ECS service SG to access RDS
 resource "aws_security_group_rule" "rds_ingress_from_ecs_service" {
   type                     = "ingress"
   from_port                = 5432
@@ -165,5 +265,81 @@ resource "aws_security_group_rule" "rds_ingress_from_ecs_service" {
   protocol                 = "tcp"
   security_group_id        = module.rds.db_security_group_id
   source_security_group_id = module.ecs_service.security_group_id
-  description              = "Allow PostgreSQL from ECS service tasks"
+  description              = "Allow PostgreSQL from web ECS service tasks"
+}
+
+# -----------------------------------------------------------------------------
+# ECS Service — API (Fastify + tRPC)
+# -----------------------------------------------------------------------------
+
+module "ecs_service_api" {
+  source = "../../modules/ecs-service"
+
+  project_name          = var.project_name
+  environment           = var.environment
+  service_name          = "api"
+  cluster_id            = module.ecs_cluster.cluster_id
+  task_family           = "${var.project_name}-${var.environment}-api"
+  container_image       = var.api_container_image != "" ? var.api_container_image : "${module.ecr_api.repository_url}:latest"
+  container_port        = var.api_container_port
+  cpu                   = var.api_cpu
+  memory                = var.api_memory
+  desired_count         = var.api_desired_count
+  min_capacity          = var.api_min_capacity
+  max_capacity          = var.api_max_capacity
+  target_group_arn      = var.enable_load_balancer ? aws_lb_target_group.api[0].arn : ""
+  subnet_ids            = local.common.public_subnet_ids
+  assign_public_ip      = true
+  vpc_id                = local.common.vpc_id
+  vpc_cidr              = local.common.vpc_cidr_block
+  alb_security_group_id = var.enable_load_balancer ? module.alb[0].security_group_id : ""
+
+  environment_variables = local.api_env_vars
+
+  secrets = {
+    DATABASE_SECRET = module.rds.db_secret_arn
+  }
+
+  tags = var.tags
+}
+
+# Allow API ECS service SG to access RDS
+resource "aws_security_group_rule" "rds_ingress_from_ecs_service_api" {
+  type                     = "ingress"
+  from_port                = 5432
+  to_port                  = 5432
+  protocol                 = "tcp"
+  security_group_id        = module.rds.db_security_group_id
+  source_security_group_id = module.ecs_service_api.security_group_id
+  description              = "Allow PostgreSQL from API ECS service tasks"
+}
+
+# -----------------------------------------------------------------------------
+# Route 53 DNS Records
+# -----------------------------------------------------------------------------
+
+resource "aws_route53_record" "web" {
+  count   = var.create_dns_records && var.enable_load_balancer && var.domain_name != "" ? 1 : 0
+  zone_id = var.route53_zone_id
+  name    = var.domain_name
+  type    = "A"
+
+  alias {
+    name                   = module.alb[0].alb_dns_name
+    zone_id                = module.alb[0].alb_zone_id
+    evaluate_target_health = true
+  }
+}
+
+resource "aws_route53_record" "api" {
+  count   = var.create_dns_records && var.enable_load_balancer && var.api_host_header != "" ? 1 : 0
+  zone_id = var.route53_zone_id
+  name    = var.api_host_header
+  type    = "A"
+
+  alias {
+    name                   = module.alb[0].alb_dns_name
+    zone_id                = module.alb[0].alb_zone_id
+    evaluate_target_health = true
+  }
 }

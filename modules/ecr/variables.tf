@@ -31,6 +31,12 @@ variable "max_image_count" {
   default     = 30
 }
 
+variable "repository_name" {
+  description = "Custom repository name. Defaults to {project_name}-{environment} if empty."
+  type        = string
+  default     = ""
+}
+
 variable "tags" {
   description = "Additional tags to apply to resources"
   type        = map(string)

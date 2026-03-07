@@ -21,7 +21,7 @@ locals {
 }
 
 resource "aws_ecr_repository" "this" {
-  name                 = "${var.project_name}-${var.environment}"
+  name                 = var.repository_name != "" ? var.repository_name : "${var.project_name}-${var.environment}"
   image_tag_mutability = var.image_tag_mutability
   force_delete         = false
 
