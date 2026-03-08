@@ -190,6 +190,14 @@ resource "aws_ecs_task_definition" "this" {
         },
       ]
 
+      healthCheck = length(var.health_check_command) > 0 ? {
+        command     = var.health_check_command
+        interval    = 30
+        timeout     = 5
+        retries     = 3
+        startPeriod = 60
+      } : null
+
       logConfiguration = {
         logDriver = "awslogs"
         options = {
@@ -303,6 +311,10 @@ resource "aws_ecs_service" "this" {
   task_definition = aws_ecs_task_definition.this.arn
   desired_count   = var.desired_count
   launch_type     = "FARGATE"
+
+  deployment_minimum_healthy_percent = var.deployment_minimum_healthy_percent
+  deployment_maximum_percent         = var.deployment_maximum_percent
+  health_check_grace_period_seconds  = var.target_group_arn != "" ? var.health_check_grace_period_seconds : null
 
   network_configuration {
     subnets          = var.subnet_ids

@@ -117,6 +117,30 @@ variable "service_name" {
   default     = ""
 }
 
+variable "health_check_command" {
+  description = "Container health check command. Empty list disables container health check."
+  type        = list(string)
+  default     = []
+}
+
+variable "health_check_grace_period_seconds" {
+  description = "Seconds to wait before ECS starts checking ALB health for new tasks"
+  type        = number
+  default     = 60
+}
+
+variable "deployment_minimum_healthy_percent" {
+  description = "Lower bound on running tasks during deployment (100 = never fewer than desired_count)"
+  type        = number
+  default     = 100
+}
+
+variable "deployment_maximum_percent" {
+  description = "Upper bound on running tasks during deployment (200 = allow double for rolling update)"
+  type        = number
+  default     = 200
+}
+
 variable "tags" {
   description = "Additional tags to apply to all resources"
   type        = map(string)

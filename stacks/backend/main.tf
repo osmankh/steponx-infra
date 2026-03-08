@@ -254,6 +254,8 @@ module "ecs_service" {
   enable_alb_ingress    = var.enable_load_balancer
   alb_security_group_id = var.enable_load_balancer ? module.alb[0].security_group_id : ""
 
+  health_check_command = ["CMD-SHELL", "node -e \"const http=require('http');http.get('http://localhost:${var.container_port}/api/health',(r)=>{process.exit(r.statusCode===200?0:1)}).on('error',()=>process.exit(1))\""]
+
   environment_variables = local.app_env_vars
 
   secrets = {
@@ -300,6 +302,8 @@ module "ecs_service_api" {
   vpc_cidr              = local.common.vpc_cidr_block
   enable_alb_ingress    = var.enable_load_balancer
   alb_security_group_id = var.enable_load_balancer ? module.alb[0].security_group_id : ""
+
+  health_check_command = ["CMD-SHELL", "node -e \"const http=require('http');http.get('http://localhost:${var.api_container_port}/health',(r)=>{process.exit(r.statusCode===200?0:1)}).on('error',()=>process.exit(1))\""]
 
   environment_variables = local.api_env_vars
 
