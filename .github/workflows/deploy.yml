@@ -135,11 +135,13 @@ jobs:
           tofu plan \
             -var-file="../../environments/${{ matrix.env }}/common.tfvars" \
             -out=plan.tfplan -no-color 2>&1 | tee plan-output.txt
-          DELIM="PLAN_EOF_$(uuidgen | tr -d '-')"
-          echo "plan_text<<$DELIM" >> $GITHUB_OUTPUT
-          head -c 60000 plan-output.txt >> $GITHUB_OUTPUT
-          echo "" >> $GITHUB_OUTPUT
-          echo "$DELIM" >> $GITHUB_OUTPUT
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            DELIM="PLAN_EOF_$(uuidgen | tr -d '-')"
+            echo "plan_text<<$DELIM" >> $GITHUB_OUTPUT
+            head -c 60000 plan-output.txt | sed 's/::/-:/g' >> $GITHUB_OUTPUT
+            echo "" >> $GITHUB_OUTPUT
+            echo "$DELIM" >> $GITHUB_OUTPUT
+          fi
 
       - name: Post plan to PR
         if: github.event_name == 'pull_request'
@@ -216,11 +218,13 @@ jobs:
           tofu plan \
             -var-file="../../environments/${{ matrix.env }}/backend.tfvars" \
             -out=plan.tfplan -no-color 2>&1 | tee plan-output.txt
-          DELIM="PLAN_EOF_$(uuidgen | tr -d '-')"
-          echo "plan_text<<$DELIM" >> $GITHUB_OUTPUT
-          head -c 60000 plan-output.txt >> $GITHUB_OUTPUT
-          echo "" >> $GITHUB_OUTPUT
-          echo "$DELIM" >> $GITHUB_OUTPUT
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            DELIM="PLAN_EOF_$(uuidgen | tr -d '-')"
+            echo "plan_text<<$DELIM" >> $GITHUB_OUTPUT
+            head -c 60000 plan-output.txt | sed 's/::/-:/g' >> $GITHUB_OUTPUT
+            echo "" >> $GITHUB_OUTPUT
+            echo "$DELIM" >> $GITHUB_OUTPUT
+          fi
 
       - name: Post plan to PR
         if: github.event_name == 'pull_request'
