@@ -138,6 +138,7 @@ jobs:
           DELIM="PLAN_EOF_$(uuidgen | tr -d '-')"
           echo "plan_text<<$DELIM" >> $GITHUB_OUTPUT
           head -c 60000 plan-output.txt >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
           echo "$DELIM" >> $GITHUB_OUTPUT
 
       - name: Post plan to PR
@@ -218,6 +219,7 @@ jobs:
           DELIM="PLAN_EOF_$(uuidgen | tr -d '-')"
           echo "plan_text<<$DELIM" >> $GITHUB_OUTPUT
           head -c 60000 plan-output.txt >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
           echo "$DELIM" >> $GITHUB_OUTPUT
 
       - name: Post plan to PR
