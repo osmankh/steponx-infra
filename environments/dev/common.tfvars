@@ -1,5 +1,4 @@
 environment         = "dev"
-domain_name         = "steponx.com"
 enable_media_bucket = true
 
 # DNS & SSL — zone is looked up (created in production)

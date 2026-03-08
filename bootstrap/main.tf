@@ -223,6 +223,8 @@ data "aws_iam_policy_document" "github_actions_permissions" {
       "iam:CreatePolicy",
       "iam:DeletePolicy",
       "iam:GetPolicy",
+      "iam:TagPolicy",
+      "iam:UntagPolicy",
       "iam:GetPolicyVersion",
       "iam:ListPolicies",
       "iam:ListPolicyVersions",
