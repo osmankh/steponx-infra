@@ -52,7 +52,7 @@ resource "aws_acm_certificate" "main" {
 }
 
 resource "aws_route53_record" "acm_validation" {
-  for_each = var.create_acm_certificate && var.create_hosted_zone && length(var.acm_domain_names) > 0 ? toset(var.acm_domain_names) : toset([])
+  for_each = var.create_acm_certificate && (var.create_hosted_zone || var.route53_zone_id != "") && length(var.acm_domain_names) > 0 ? toset(var.acm_domain_names) : toset([])
 
   zone_id         = local.zone_id
   name            = one([for dvo in aws_acm_certificate.main[0].domain_validation_options : dvo.resource_record_name if dvo.domain_name == each.key])
@@ -63,7 +63,7 @@ resource "aws_route53_record" "acm_validation" {
 }
 
 resource "aws_acm_certificate_validation" "main" {
-  count                   = var.create_acm_certificate && var.create_hosted_zone && length(var.acm_domain_names) > 0 ? 1 : 0
+  count                   = var.create_acm_certificate && (var.create_hosted_zone || var.route53_zone_id != "") && length(var.acm_domain_names) > 0 ? 1 : 0
   certificate_arn         = aws_acm_certificate.main[0].arn
   validation_record_fqdns = [for record in aws_route53_record.acm_validation : record.fqdn]
 }
