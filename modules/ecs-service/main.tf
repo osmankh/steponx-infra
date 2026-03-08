@@ -339,7 +339,7 @@ resource "aws_ecs_service" "this" {
   depends_on = [aws_ecs_task_definition.this]
 
   lifecycle {
-    ignore_changes = [desired_count, task_definition]
+    ignore_changes = [desired_count]
   }
 
   tags = local.common_tags
