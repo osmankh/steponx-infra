@@ -174,6 +174,24 @@ variable "create_dns_records" {
 }
 
 # -----------------------------------------------------------------------------
+# Auth Secrets
+# -----------------------------------------------------------------------------
+
+variable "custom_auth_secret" {
+  description = "Shared secret for Cognito custom auth challenge HMAC computation"
+  type        = string
+  sensitive   = true
+  default     = "change-me"
+}
+
+variable "auth_secret" {
+  description = "Secret used for signing application auth tokens (e.g. session JWTs)"
+  type        = string
+  sensitive   = true
+  default     = "change-me"
+}
+
+# -----------------------------------------------------------------------------
 # Application
 # -----------------------------------------------------------------------------
 

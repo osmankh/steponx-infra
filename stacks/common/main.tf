@@ -154,6 +154,16 @@ resource "aws_route53_record" "caa" {
 # Cognito
 # -----------------------------------------------------------------------------
 
+module "cognito_triggers" {
+  source = "../../modules/cognito-triggers"
+
+  project_name          = var.project_name
+  environment           = var.environment
+  custom_auth_secret    = var.custom_auth_secret
+  cognito_user_pool_arn = module.cognito.user_pool_arn
+  tags                  = var.tags
+}
+
 module "cognito" {
   source = "../../modules/cognito"
 
@@ -163,5 +173,10 @@ module "cognito" {
   logout_urls    = var.cognito_logout_urls
   ses_from_email = var.domain_name != "" ? "noreply@${var.domain_name}" : ""
   ses_source_arn = var.domain_name != "" ? module.ses[0].domain_identity_arn : ""
-  tags           = var.tags
+
+  define_auth_challenge_lambda_arn          = module.cognito_triggers.define_auth_challenge_lambda_arn
+  create_auth_challenge_lambda_arn          = module.cognito_triggers.create_auth_challenge_lambda_arn
+  verify_auth_challenge_response_lambda_arn = module.cognito_triggers.verify_auth_challenge_response_lambda_arn
+
+  tags = var.tags
 }

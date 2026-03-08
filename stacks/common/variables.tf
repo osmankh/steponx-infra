@@ -76,6 +76,13 @@ variable "media_allowed_origins" {
 # Cognito
 # -----------------------------------------------------------------------------
 
+variable "custom_auth_secret" {
+  description = "Shared secret for Cognito custom auth challenge HMAC computation"
+  type        = string
+  sensitive   = true
+  default     = "change-me"
+}
+
 variable "cognito_callback_urls" {
   description = "Allowed callback URLs for Cognito user pool client"
   type        = list(string)

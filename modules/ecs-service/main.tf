@@ -134,6 +134,12 @@ resource "aws_iam_role_policy" "task_app" {
           "cognito-idp:AdminCreateUser",
           "cognito-idp:AdminUpdateUserAttributes",
           "cognito-idp:AdminDeleteUser",
+          "cognito-idp:AdminSetUserPassword",
+          "cognito-idp:AdminInitiateAuth",
+          "cognito-idp:AdminRespondToAuthChallenge",
+          "cognito-idp:AdminDisableUser",
+          "cognito-idp:AdminEnableUser",
+          "cognito-idp:AdminUserGlobalSignOut",
           "cognito-idp:ListUsers",
         ]
         Resource = "*"

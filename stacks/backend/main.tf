@@ -36,6 +36,8 @@ locals {
     MEDIA_BUCKET         = try(local.common.media_bucket_name, "")
     MEDIA_URL            = try(local.common.media_base_url, "")
     PORT                 = tostring(var.api_container_port)
+    CUSTOM_AUTH_SECRET   = var.custom_auth_secret
+    AUTH_SECRET          = var.auth_secret
   }, var.api_environment_variables)
 }
 
